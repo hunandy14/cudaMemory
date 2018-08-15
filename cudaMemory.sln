@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.27703.2047
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cudaMemory", "cudaMemory\cudaMemory.vcxproj", "{3B3B9696-5690-46CA-9CB1-E4B58FC54939}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{3B3B9696-5690-46CA-9CB1-E4B58FC54939}.Debug|x64.ActiveCfg = Debug|x64
+		{3B3B9696-5690-46CA-9CB1-E4B58FC54939}.Debug|x64.Build.0 = Debug|x64
+		{3B3B9696-5690-46CA-9CB1-E4B58FC54939}.Release|x64.ActiveCfg = Release|x64
+		{3B3B9696-5690-46CA-9CB1-E4B58FC54939}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {5B2E9CD6-C51C-4162-AAE8-6E486510537C}
+	EndGlobalSection
+EndGlobal
