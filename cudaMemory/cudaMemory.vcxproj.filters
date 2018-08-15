@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="cuLib">
+      <UniqueIdentifier>{9f5817f9-c39d-4684-ad61-3fce88e285a0}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="cuLib\cuMem.cuh">
+      <Filter>cuLib</Filter>
+    </ClInclude>
+    <ClInclude Include="cuLib\cuImgData.cuh">
+      <Filter>cuLib</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="cudaMemory_main.cpp" />
+  </ItemGroup>
+</Project>
