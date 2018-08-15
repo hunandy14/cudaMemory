@@ -14,13 +14,67 @@ Final: 2018/01/08
 #include <cmath>
 using namespace std;
 
-#include "cubilinear.hpp"
+#include "cubilinear.cuh"
 #define BLOCK_DIM 16.0
-#define BLOCK_DIM_X 32.0
-#define BLOCK_DIM_Y 8.0
+#define BLOCK_DIM_X 16.0
+#define BLOCK_DIM_Y 16.0
 
 using uch = unsigned char;
 
+//======================================================================================
+// 複製圖片
+__global__ void addKernel(uch *c)
+{
+	int i = threadIdx.x;
+	c[i] = 128;
+}
+
+__global__ void addKernel2(int *c)
+{
+	int i = threadIdx.x;
+	c[i] = 128;
+}
+__host__ void add(int* c) {
+	addKernel2<<<1, 3>>>(c);
+}
+
+__global__
+void imgCopy_kernel(const uch* src, uch* dst, int w, int h)
+{
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	int j = blockIdx.y * blockDim.y + threadIdx.y;
+	if(j < h && i < w) { // 會多跑一點點要擋掉
+		int srcIdx = (j*w +i) *3;
+		int dstIdx = (j*w +i) *3;
+
+		//dst[dstIdx+0] = src[srcIdx+0];
+		//dst[dstIdx+1] = src[srcIdx+1];
+		//dst[dstIdx+2] = src[srcIdx+2];
+
+
+		dst[dstIdx+0] = 128;
+		dst[dstIdx+1] = 128;
+		dst[dstIdx+2] = 128;
+	}					
+}
+// 複製圖片
+__host__
+void imgCopy(const cuImgData & uSrc, cuImgData & uDst) {
+	// 設置大小
+	int srcW = uSrc.width;
+	int srcH = uSrc.height;
+
+	uDst.resize(uSrc);
+
+	//// 設置執行緒
+	//dim3 block(BLOCK_DIM_X, BLOCK_DIM_Y);
+	//dim3 grid(ceil(srcW / BLOCK_DIM_X)+1, ceil(srcH / BLOCK_DIM_Y)+1);
+
+	//// 執行 kernel
+	//imgCopy_kernel <<< grid, block >>> (uSrc, uDst, srcW, srcH);
+	cout << "go = " << srcW*srcH << endl;
+	addKernel<<<1, srcW*srcH>>>(uSrc.gpuData);
+}
 //======================================================================================
 // 快速線性插值_核心
 __device__ __host__ static inline
@@ -61,6 +115,7 @@ void fast_Bilinear(const uch* src, int w, int h,
 	p[1] = (unsigned char) G;
 	p[2] = (unsigned char) B;
 }
+//==============================================
 // 快速線性插值
 __global__ 
 void cuWarpScale_kernel(const uch* src, uch* dst, 
@@ -85,20 +140,21 @@ void cuWarpScale_kernel(const uch* src, uch* dst,
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 	int j = blockIdx.y * blockDim.y + threadIdx.y;
 	if(j < dstH && i < dstW) { // 會多跑一點點要擋掉
-			double srcY, srcX;
-			if (ratio < 1.0) {
-				srcX = i*(r1W+deviW);
-				srcY = j*(r1H+deviH);
-			} else if (ratio >= 1.0) {
-				srcX = i*r2W;
-				srcY = j*r2H;
-			}
-			// 獲取插補值
-			unsigned char* p = &dst[(j*dstW+ i) *3];
-			fast_Bilinear(src, w, h, p, srcY, srcX);
-		
+		double srcY, srcX;
+		if (ratio < 1.0) {
+			srcX = i*(r1W+deviW);
+			srcY = j*(r1H+deviH);
+		} else if (ratio >= 1.0) {
+			srcX = i*r2W;
+			srcY = j*r2H;
+		}
+		// 獲取插補值
+		unsigned char* p = &dst[(j*dstW+ i) *3];
+		fast_Bilinear(src, w, h, p, srcY, srcX);
+
 	}
 }
+
 // GPU 線性插值
 __host__
 void WarpScale_rgb(const cuImgData & uSrc, cuImgData & uDst, double ratio) {
@@ -114,48 +170,44 @@ void WarpScale_rgb(const cuImgData & uSrc, cuImgData & uDst, double ratio) {
 	// 執行 kernel
 	cuWarpScale_kernel <<< grid, block >>> (uSrc, uDst, uSrc.width, uSrc.height, ratio);
 }
-// 測試 cuWarpScale_kernel
+//==============================================
+// CPU快速線性插值
 __host__
-void cuWarpScale_kernel_test(const basic_ImgData & src, basic_ImgData & dst, double ratio){
-	Timer t;
-	// 初始化空間
-	//t.start();
+void WarpScale_rgb(const basic_ImgData &src, basic_ImgData &dst, double ratio){
+	// 防呆
+	if (src.bits != 24) runtime_error("IMG is not 24bit.");
 	// 初始化 dst
 	dst.width  = (int)((src.width  * ratio) +0.5);
 	dst.height = (int)((src.height * ratio) +0.5);
 	dst.bits   = src.bits;
 	dst.raw_img.resize(dst.width * dst.height * dst.bits>>3);
-	//t.print("  resize");
 
-	// 要求GPU空間
-	//t.start();
-	cuMem<uch> gpuSrc(src.raw_img.size());
-	//t.print("  cudamalloc gpuSrc");
-	//t.start();
-	cuMem<uch> gpuDst(dst.raw_img.size());
-	//t.print("  cudamalloc gpuDst");
+	// 縮小的倍率
+	double r1W = ((double)src.width )/(dst.width );
+	double r1H = ((double)src.height)/(dst.height);
+	// 放大的倍率
+	double r2W = (src.width -1.0)/(dst.width -1.0);
+	double r2H = (src.height-1.0)/(dst.height-1.0);
+	// 縮小時候的誤差
+	double deviW = ((src.width-1.0)  - (dst.width -1.0)*(r1W)) /dst.width;
+	double deviH = ((src.height-1.0) - (dst.height-1.0)*(r1H)) /dst.height;
 
-	// 複製資料
-	// t.start();/
-	gpuSrc.memcpyIn(src.raw_img.data(), src.raw_img.size());
-	// t.print("  memcpyIn");
-
-	// 設置執行緒
-	dim3 block(BLOCK_DIM, BLOCK_DIM);
-	dim3 grid(ceil(dst.width / BLOCK_DIM), ceil(dst.width / BLOCK_DIM));
-
-	// 執行 kernel
-	// t.start();
-	cuWarpScale_kernel <<< grid, block >>> (gpuSrc, gpuDst, src.width, src.height, ratio);
-	// t.print("  kernel");
-
-	// 複製資料
-	// t.start();
-	gpuDst.memcpyOut(dst.raw_img.data(), dst.raw_img.size());
-	// t.print("  memcpyOut");
-
-
-	// t.start();
-	gpuDst.~cuMem<uch>();
-	// t.print("  dctor");
+	// 跑新圖座標
+	//#pragma omp parallel for
+	for (int j = 0; j < dst.height; ++j) {
+		for (int i = 0; i < dst.width; ++i) {
+			// 調整對齊
+			double srcY, srcX;
+			if (ratio < 1.0) {
+				srcX = i*(r1W+deviW);
+				srcY = j*(r1H+deviH);
+			} else if (ratio >= 1.0) {
+				srcX = i*r2W;
+				srcY = j*r2H;
+			}
+			// 獲取插補值
+			unsigned char* p = &dst.raw_img[(j*dst.width + i) *3];
+			fast_Bilinear(src.raw_img.data(), src.width, src.height, p, srcY, srcX);
+		}
+	}
 }

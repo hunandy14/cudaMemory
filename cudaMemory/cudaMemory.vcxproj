@@ -86,9 +86,9 @@
     <CudaCompile Include="cubilinear\cubilinear.cu" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="cubilinear\cubilinear.hpp" />
-    <ClInclude Include="cuLib\cuImgData.cuh" />
-    <ClInclude Include="cuLib\cuMem.cuh" />
+    <ClInclude Include="cubilinear\cubilinear.cuh" />
+    <ClInclude Include="culib\cuImgData.cuh" />
+    <ClInclude Include="culib\cuMem.cuh" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cudaMemory_main.cpp" />
